@@ -31,8 +31,10 @@ A utilização é bastante simples. Você necessitará de um template HTML que p
 
 Em seguida basta realizar a chamada de dois métodos. O primeiro é o método **Configure**:
 
-	PDFGenerator pdfGenerator = new PDFGenerator();
-	pdfGenerator.Configure(templatePath, outputPath, force);
+```csharp
+PDFGenerator pdfGenerator = new PDFGenerator();
+pdfGenerator.Configure(templatePath, outputPath, force);
+```
 
 + **templatePath** - Caminho que contém a localização do template (arquivo HTML). Pode ser um caminho absoluto ou relativo. Parâmetro tipo ***string***.
 + **outputPath** - Caminho de saída do arquivo.  Parâmetro tipo ***string***.
@@ -41,46 +43,51 @@ Em seguida basta realizar a chamada de dois métodos. O primeiro é o método **
 <br/>
 Após configurar o gerador, é possível chamar a função de geração.
 
-	string p =  await pdfGenerator.Build(filePDFName, data);
+```csharp
+string p =  await pdfGenerator.Build(filePDFName, data);
+```
 
 Onde:
 
 + **teste.pdf** - o nome do arquivo de saída (ex. *"teste.pdf"*). Parâmetro tipo ***string***.
 + **data** - coleção de dados. Pode ser um Json já serializado (formato *string*) ou uma coleção do seu sistema (ex. List\<Produto\>). Parâmetro tipo ***object***.
-
+<br>
 
 ### Exemplo de Utilização
 
 Segue um exemplo explicado de utilização.
 
 Primeiramente definiremos os caminhos do template e de saída. Também iremos definir o valor do parâmetro *force*, que nesse caso irá forçar a criação do caminho output.
-
-	string templatePath =  @"./templates/relatorio1/template.html";
-	string outputPath =  @"./out/";
-	bool force =  true;
-
- Repare que os caminhos utilizados são do tipo *relativo*, porém é possível utilizar também caminhos absolutos (ex. *C:\SeuSistema\templates\relatorio1\template.html").
+```csharp
+string templatePath =  @"./templates/relatorio1/template.html";
+string outputPath =  @"./out/";
+bool force =  true;
+```
+Repare que os caminhos utilizados são do tipo *relativo*, porém é possível utilizar também caminhos absolutos (ex. *C:\SeuSistema\templates\relatorio1\template.html").
 
 Em seguida vamos configurar e executar o gerador:
 
-	// Cria instância do Gerador
-	PDFGenerator.PDFGenerator pdfGenerator =  new  PDFGenerator.PDFGenerator();
-	// Configura o gerador com os caminhos
-	bool retorno =  pdfGenerator.Configure(templatePath, outputPath, force);
-	// Chama a geração do arquivo PDF
-	string pathFile =  await pdfGenerator.Build("teste.pdf", GetData());
+```csharp
+// Cria instância do Gerador
+PDFGenerator.PDFGenerator pdfGenerator =  new  PDFGenerator.PDFGenerator();
+// Configura o gerador com os caminhos
+bool retorno =  pdfGenerator.Configure(templatePath, outputPath, force);
+// Chama a geração do arquivo PDF
+string pathFile =  await pdfGenerator.Build("teste.pdf", GetData());
 
-	return  ret;
+return  ret;
+```
 
 Um exemplo do método GetData() pode ser conferido abaixo:
 
-	public List<Cliente> GetData() {
+```csharp
+public List<Cliente> GetData() {
+	
+	List<Cliente> clientes =  new  List<Cliente>();
 
-		List<Cliente> clientes =  new  List<Cliente>();
+	clientes.Add(new Cliente { id = 1, name = "Joao", profissao = "Pedreiro", dataNasc = "31/05/1980"});
+	clientes.Add(new Cliente { id = 2, name = "Pedro", profissao = "Arquiteto", dataNasc = "04/04/1988"});
 
-		clientes.Add(new  Cliente { id  =  1, name  =  "Joao", profissao  =  "Pedreiro", dataNasc  =  "31/05/1980"});
-		clientes.Add(new  Cliente { id  =  2, name  =  "Pedro", profissao  =  "Arquiteto", dataNasc  =  "04/04/1988"});
-
-		return  clientes;
-
-	}
+	return clientes;
+}
+```
