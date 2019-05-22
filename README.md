@@ -1,5 +1,3 @@
-Welcome file
-Welcome file
 ## PDFGenerator
 
 **PDFGenerator**  - Biblioteca que realiza a exportação de uma página HTML (Hosted) para PDF.
