@@ -112,7 +112,7 @@ Geração rápida utilizando kernel do Chromium.
 Observações Importantes (antes de utilizar)
 Necessário o Chromium (google Chrome ou kernel do Chromium).
 Permissão nas pastas para leitura e gravação.
-Para fontes de dados externa, template deve basear-se em um arquivo chamado data.js. Dúvidas, basear-se no template da pasta exemplos.
+Para fontes de dados externa, template deve basear-se em um arquivo chamado data.js. 
 Utilização
 A utilização é bastante simples. Você necessitará de um template HTML que pode ficar no diretório de sua aplicação.
 
