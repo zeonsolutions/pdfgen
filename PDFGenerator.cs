@@ -180,17 +180,15 @@ namespace PDFGenerator
         /// <param name="data">Dados do relatório. Aceita string (lista em formato JSON) ou uma List<T></param>
         public async Task<string> Build (string name, object data) {
 
-            string dataSerie = string.Empty;
+            string dataSerie = "window.data = ";
 
             if (data.GetType() == typeof(string)) {
-                dataSerie = "export default " + (data as string);
+                dataSerie += (data as string);
                 return await this.BuildReport(name, dataSerie);     
             }
 
             // Serializa os dados recebidos em um Json (string)
-            dataSerie = JsonConvert.SerializeObject(data, Formatting.None);
-
-            dataSerie = "export default " + dataSerie;
+            dataSerie += JsonConvert.SerializeObject(data, Formatting.None);
 
             // Gera o PDF
             return await this.BuildReport(name, dataSerie);
