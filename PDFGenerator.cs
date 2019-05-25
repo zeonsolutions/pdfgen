@@ -21,7 +21,7 @@ namespace PDFGenerator
         private string _jsonName = "data.js";
 
         // Caminho do diretório de saída (output)
-        private string _outputPath;
+        private string _outputRootPath;
 
         // Caminho do arquivo JSON
         private string _pathJson;
@@ -30,48 +30,53 @@ namespace PDFGenerator
         private string _templateName = "";
 
         // Caminho do template
-        private string _templatePath;
+        private string _templatesRootPath;
 
         #endregion Atributos
 
-
         #region Construtor
-        public PDFGenerator() {
+        public PDFGenerator()
+        {
             // Gera o GUID de identificação
             GuidGenerate();
         }
 
         #endregion Construtor
 
-
         #region Métodos Privados
 
         /// <summary>
         /// Gera o PDF. Necessário chamar o método Configure anteriormente.
         /// </summary>
-        /// <param name="name">Nome do arquivo (pdf) que será gerado. </param>
-        /// <param name="data">Dados do relatório. Aceita string (lista em formato JSON) ou uma List<T></param>
-        private async Task<string> BuildReport (string name, string data) {
-            string pathRetorno = string.Empty;
+        /// <param name="templateName">Nome do template a ser utilizado.</param>
+        /// <param name="name">Nome do arquivo (PDF) que será gerado.</param>
+        /// <param name="data">Dados do relatório. (JSON)</param>
+        private async Task<string> BuildReport (string templateName, string name, string data)
+        {
+            string outputDirectoryPath = GetOutputDirectoryPathForTemplate(templateName);
+            string renderPath = $"file:{Path.Combine(outputDirectoryPath, "template.html")}";
+            string returnPath = Path.Combine(outputDirectoryPath, $"{name}.pdf");
 
-            // Realiza a verificação se os paths são válidos e
-            // cria o diretório de saída caso não existir (apenas se o atributo force = TRUE)
-            // ATENÇÃO DESENVOLVEDOR: deixar com apenas um & para passar pelos dois métodos
-            if (ValidatePaths() & CreateDirectoryPaths()) {
-                // Copiar arquivos de template e gerar o JSON com os dados
-                CopyTemplateFiles();
-                CreateJsonFile(data);
+            bool createdOutputDirectory = CreateTemplateOutputDirectory(templateName);
+            bool hasValidTemplatePaths = ValidateTemplatePaths(templateName);
+
+            if (createdOutputDirectory && hasValidTemplatePaths)
+            {
+                CopyTemplateFiles(templateName);
+                CreateJsonFile(outputDirectoryPath, data);
             }
-            else {
+            else
+            {
                 throw new Exception("Error validating and creating paths.");
             }
-            
-            // Cria instância do browser background (utilizando Puppeteer) 
+
+            // Cria instância do browser background (utilizando Puppeteer)
             // para posterior renderização do relatório HTML
             await new BrowserFetcher().DownloadAsync(BrowserFetcher.DefaultRevision);
             var browser = await Puppeteer.LaunchAsync(new LaunchOptions
             {
-                Headless = true
+                Headless = true,
+                Args = new[]{ "--no-sandbox" }
             });
 
             // Cria uma nova página no browser interno
@@ -80,88 +85,139 @@ namespace PDFGenerator
             // Abre o relatório nessa nova página
             // Propriedade WaitUntilNavigation.Networkidle2 aguarda o carregamento dos
             // recursos do relatório (imagens, imports, etc).
-            await page.GoToAsync(this._outputPath + this._templateName, WaitUntilNavigation.Networkidle2);
-
-            // Caminho do PDF
-            pathRetorno = this._outputPath + name;
+            await page.GoToAsync(renderPath, WaitUntilNavigation.Networkidle2);
 
             // Gera o PDF
-            await page.PdfAsync(this._outputPath + name, new PdfOptions {
+            await page.PdfAsync(returnPath, new PdfOptions {
                 Format = PaperFormat.A4,
                 PrintBackground = true
-            });     
+            });
 
             // Retorna o caminho do PDF
-            return pathRetorno;
+            return returnPath;
         }
 
         // Copiar arquivos de templates para a nova pasta (utilizando GUID)
-        private bool CopyTemplateFiles () {
+        private bool CopyTemplateFiles (string templateName)
+        {
+            string templatePath = GetPathForTemplate(templateName);
 
             // Pega o caminho físico do diretório do template
-            string directory = new FileInfo(this._templatePath).Directory.FullName;
+            string directory = new FileInfo(templatePath).Directory.FullName;
+            string outputDirectory = GetOutputDirectoryPathForTemplate(templateName);
 
             // Copia todos os arquivos desse diretório para a nova pasta de saída
             foreach(var file in Directory.GetFiles(directory))
-                File.Copy(file, Path.Combine(this._outputPath, Path.GetFileName(file)));
+                File.Copy(file, Path.Combine(outputDirectory, Path.GetFileName(file)));
 
             return true;
         }
 
         // Criar arquivo JSON com os dados do relatório
-        private bool CreateJsonFile(string data) {
+        private bool CreateJsonFile(string outputDirectoryPath, string data)
+        {
             // Gera o arquivo .json com os dados do template
-            File.WriteAllText(this._pathJson, data);
+            string outputFilePath = Path.Combine(outputDirectoryPath, _jsonName);
+            File.WriteAllText(outputFilePath, data);
             return true;
         }
 
-        private bool CreateDirectoryPaths() {
-
-            // Cria-se os diretórios apenas se a varíavel for true
-            if (!this._force)
-                return false;
-
-            try {
-                // Criação do diretório de saída, caso não existir
-                if (!Directory.Exists(this._outputPath)) {
-                    Directory.CreateDirectory(this._outputPath);
+        private bool CreateOutputRootDirectory(string path, bool force)
+        {
+            if (!force)
+            {
+                if (!Directory.Exists(path))
+                {
+                    throw new Exception("The output path does not exist. Enter a valid path OR change the value of the 'force' attribute to TRUE. (E.g. 'C:\\Project\\out\\')");
                 }
+
+                return false;
             }
-            catch (Exception ex) {
+
+            try
+            {
+                if (!Directory.Exists(path))
+                {
+                    Directory.CreateDirectory(path);
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
                 string m = ex.Message;
-                m += "\n\n" + this._templatePath;
-                m += "\n\n" + this._outputPath;
+                m += "\n\n" + path;
 
                 throw new Exception(m);
             }
-
-            return true;
         }
 
-        private void GetTemplateName() {
-            //Pega o nome do arquivo template (apenas o nome)
-            this._templateName = new FileInfo(this._templatePath).Name;
+        private bool CreateTemplateOutputDirectory(string templateName)
+        {
+            try
+            {
+                if (!Directory.Exists(GetOutputDirectoryPathForTemplate(templateName)))
+                {
+                    return Directory.CreateDirectory(GetOutputDirectoryPathForTemplate(templateName)).Exists;
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                string m = ex.Message;
+                m += "\n\n" + this._outputRootPath;
+
+                throw new Exception(m);
+            }
         }
 
-        private void GuidGenerate() {
+        private string GetPathForTemplate(string templateName)
+        {
+            return Path.Combine(_templatesRootPath, templateName, "template.html");
+        }
+
+        private string GetOutputDirectoryPathForTemplate(string templateName)
+        {
+            return Path.Combine(_outputRootPath, templateName, _guidGeneration.ToString());
+        }
+
+        private void GuidGenerate()
+        {
             // Gera o GUID de identificação
             this._guidGeneration = Guid.NewGuid();
         }
 
-        private bool ValidatePaths() {
-
-            // Se o diretório não existir e a variável force estiver com o valor false
-            // Informa uma Exception dizendo que o caminho não existe.
-            if (!File.Exists(this._templatePath)) {
-                throw new Exception("The template path does not exist. Enter a valid path. (E.g. 'C:\\Project\\template.html')");
+        private bool ValidateTemplatePaths(string templateName)
+        {
+            if (!File.Exists(GetPathForTemplate(templateName)))
+            {
+                throw new Exception("The template path does not exist. Enter a valid path. (E.g. 'C:\\Project\\templates\\foo\\template.html')");
             }
-            
-            // Pega o nome do arquivo template
-            GetTemplateName();
 
-            // Se o diretório não existir e a variável force estiver com o valor false
-            // Informa uma Exception dizendo que o caminho não existe.
-            if (!Directory.Exists(this._outputPath) && !this._force) {
+            string templateOutputDirectoryPath = GetOutputDirectoryPathForTemplate(templateName);
+
+            if (!Directory.Exists(templateOutputDirectoryPath))
+            {
+                throw new Exception("The template output path does not exist.");
+            }
+
+            return true;
+        }
+
+        private bool ValidateRootPaths() {
+            if (!Directory.Exists(_templatesRootPath))
+            {
+                throw new Exception("The templates root path does not exist. Enter a valid path. (E.g. 'C:\\Project\\templates')");
+            }
+
+            if (_force)
+            {
+                return true;
+            }
+
+            if (!Directory.Exists(_outputRootPath))
+            {
                 throw new Exception("The output path does not exist. Enter a valid path OR change the value of the 'force' attribute to TRUE. (E.g. 'C:\\Project\\out\\')");
             }
 
@@ -170,52 +226,55 @@ namespace PDFGenerator
 
         #endregion Métodos Privados
 
-
         #region Métodos Públicos
 
         /// <summary>
         /// Gera o PDF. Obrigatório chamar o método Configure antes de usar essa função.
         /// </summary>
         /// <param name="name">Nome do arquivo (pdf) que será gerado. </param>
-        /// <param name="data">Dados do relatório. Aceita string (lista em formato JSON) ou uma List<T></param>
-        public async Task<string> Build (string name, object data) {
-
+        /// <param name="data">Dados do relatório. (JSON)</param>
+        public async Task<string> Build (string templateName, string name, object data)
+        {
             string dataSerie = "window.data = ";
 
-            if (data.GetType() == typeof(string)) {
+            if (data.GetType() == typeof(string))
+            {
                 dataSerie += (data as string);
-                return await this.BuildReport(name, dataSerie);     
+                return await this.BuildReport(templateName, name, dataSerie);
             }
 
             // Serializa os dados recebidos em um Json (string)
             dataSerie += JsonConvert.SerializeObject(data, Formatting.None);
 
             // Gera o PDF
-            return await this.BuildReport(name, dataSerie);
+            return await this.BuildReport(templateName, name, dataSerie);
         }
 
         /// <summary>
         /// Configura os caminhos que serão utilizados para geração de PDF
         /// </summary>
-        /// <param name="templatePath">Caminho lógico ou absoluto que contém a localização do template (ex. 'C:\projeto\template.html')</param>
-        /// <param name="outputPath">Caminho lógico ou absoluto que contém a localização da pasta de saída (ex. 'C:\projeto\out\')</param>
+        /// <param name="templatesRootPath">Caminho relativo ou absoluto que contém a localização do diretório de templates (ex. 'C:\projeto\templates')</param>
+        /// <param name="outputPath">Caminho relativo ou absoluto que contém a localização da pasta de saída (ex. 'C:\projeto\out\')</param>
         /// <param name="force">Se true, força a criação dos caminhos caso não existir</param>
-        public bool Configure(string templatePath, string outputPath, bool force = false) {
+        public bool Configure(string templatesRootPath, string outputRootPath, bool force = false)
+        {
+            // Caminho do diretório de templates
+            this._templatesRootPath = Path.GetFullPath(templatesRootPath);
 
-            // Caminho do template
-            this._templatePath = Path.GetFullPath(templatePath);
-            // Novo caminho de saída, utilizando o GUID gerado para a requisição
-            this._outputPath += string.Format(@"{0}{1}\", Path.GetFullPath(outputPath), this._guidGeneration.ToString());
-            // Caminho completo do JSON de saída (utilizado no relatório)
-            this._pathJson = string.Format(@"{0}{1}", this._outputPath, this._jsonName);
-            // Forçar ou não criação dos diretórios de saída
+            // Caminho de saida raiz.
+            this._outputRootPath = Path.GetFullPath(outputRootPath);
+
+            // Forçar ou não criação do diretório de saída raíz
             this._force = force;
 
-            // Validar caminhos criados
-            return ValidatePaths();
+            if (!ValidateRootPaths())
+            {
+                return false;
+            }
+
+            return CreateOutputRootDirectory(outputRootPath, force);
         }
+
         #endregion Métodos Públicos
     }
-
-
 }

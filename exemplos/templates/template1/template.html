@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <link href="style.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+        integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <title>Exemplo Relatório - PDFGenerator</title>
+</head>
+
+<body>
+    <br />
+    <h2>Relatório PDFGenerator - Exemplo</h1>
+        <div class="container">
+            <div class="row">
+                <div class="col">
+                    <div id="dvDados">
+                        <table class="table" width="80%" border="1">
+                            <thead>
+                                <th scope="col">ID</th>
+                                <th scope="col">Nome</th>
+                                <th scope="col">Profissão</th>
+                                <th scope="col">Data Nasc.</th>
+                            </thead>
+                            <tbody>
+                                <tr v-for="pessoa in dataGrid">
+                                    <th scope="row">{{ pessoa.id }}</th>
+                                    <td>{{ pessoa.name }}</td>
+                                    <td>{{ pessoa.profissao }}</td>
+                                    <td>{{ pessoa.dataNasc }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.6.10/vue.min.js"></script>
+        <script src="data.js"></script>
+        <script src="script.js"></script>
+</body>
+
+</html>
