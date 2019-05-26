@@ -237,14 +237,19 @@ namespace PDFGenerator
         {
             string dataSerie = "window.data = ";
 
+
             if (data.GetType() == typeof(string))
             {
                 dataSerie += (data as string);
                 return await this.BuildReport(templateName, name, dataSerie);
             }
 
+            var jss = new JsonSerializerSettings() {
+                ReferenceLoopHandling = ReferenceLoopHandling.Ignore
+            };
+
             // Serializa os dados recebidos em um Json (string)
-            dataSerie += JsonConvert.SerializeObject(data, Formatting.None);
+            dataSerie += JsonConvert.SerializeObject(data, Formatting.None, jss);
 
             // Gera o PDF
             return await this.BuildReport(templateName, name, dataSerie);
