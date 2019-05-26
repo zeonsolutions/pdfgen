@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 using PuppeteerSharp;
 using PuppeteerSharp.Media;
 
@@ -245,7 +246,8 @@ namespace PDFGenerator
             }
 
             var jss = new JsonSerializerSettings() {
-                ReferenceLoopHandling = ReferenceLoopHandling.Ignore
+                ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
+                ContractResolver = new CamelCasePropertyNamesContractResolver()
             };
 
             // Serializa os dados recebidos em um Json (string)
