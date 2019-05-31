@@ -1,6 +1,8 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using iTextSharp.text;
+using iTextSharp.text.pdf;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using PuppeteerSharp;
@@ -24,12 +26,6 @@ namespace PDFGenerator
         // Caminho do diretório de saída (output)
         private string _outputRootPath;
 
-        // Caminho do arquivo JSON
-        private string _pathJson;
-
-        // Nome do arquivo template
-        private string _templateName = "";
-
         // Caminho do template
         private string _templatesRootPath;
 
@@ -46,6 +42,37 @@ namespace PDFGenerator
 
         #region Métodos Privados
 
+
+        private string AddPageNumber(string outputDirectoryPath, string auxFilePath, string name)
+        {
+            string returnPath = Path.Combine(outputDirectoryPath, $"{name}.pdf");
+
+            byte[] bytes = File.ReadAllBytes(auxFilePath);
+            Font blackFont = FontFactory.GetFont("Arial", 12, Font.NORMAL, BaseColor.BLACK);
+            using (MemoryStream stream = new MemoryStream())
+            {
+                PdfReader reader = new PdfReader(bytes);
+                using (PdfStamper stamper = new PdfStamper(reader, stream))
+                {
+                    int pages = reader.NumberOfPages;
+                    for (int i = 1; i <= pages; i++)
+                    {
+                        ColumnText.ShowTextAligned(stamper.GetUnderContent(i), Element.ALIGN_RIGHT, new Phrase(i.ToString(), blackFont), 568f, 15f, 0);
+                    }
+                }
+                bytes = stream.ToArray();
+            }
+
+            
+            File.WriteAllBytes(returnPath, bytes);
+            bytes = null;           
+
+            if (File.Exists(auxFilePath))
+                File.Delete(auxFilePath);
+
+            return returnPath;
+        }
+
         /// <summary>
         /// Gera o PDF. Necessário chamar o método Configure anteriormente.
         /// </summary>
@@ -56,7 +83,7 @@ namespace PDFGenerator
         {
             string outputDirectoryPath = GetOutputDirectoryPathForTemplate(templateName);
             string renderPath = $"file:{Path.Combine(outputDirectoryPath, "template.html")}";
-            string returnPath = Path.Combine(outputDirectoryPath, $"{name}.pdf");
+            string auxFilePath = Path.Combine(outputDirectoryPath, $"{name}_aux.pdf");
 
             bool createdOutputDirectory = CreateTemplateOutputDirectory(templateName);
             bool hasValidTemplatePaths = ValidateTemplatePaths(templateName);
@@ -77,23 +104,35 @@ namespace PDFGenerator
             var browser = await Puppeteer.LaunchAsync(new LaunchOptions
             {
                 Headless = true,
-                Args = new[]{ "--no-sandbox" }
+                Args = new[]{ 
+                    "--no-sandbox",
+                    "--disable-web-security", 
+                    "--force-empty-corb-allowlist", 
+                    "--enable-features=NetworkService",
+                    "--allow-external-pages",
+                    "--allow-file-access-from-files" 
+                    }
             });
 
             // Cria uma nova página no browser interno
             var page = await browser.NewPageAsync();
+            await page.SetBypassCSPAsync(true);
 
             // Abre o relatório nessa nova página
             // Propriedade WaitUntilNavigation.Networkidle2 aguarda o carregamento dos
             // recursos do relatório (imagens, imports, etc).
-            await page.GoToAsync(renderPath, WaitUntilNavigation.Networkidle2);
-
+            var r = await page.GoToAsync(renderPath, WaitUntilNavigation.Networkidle2);
+             
             // Gera o PDF
-            await page.PdfAsync(returnPath, new PdfOptions {
+            await page.PdfAsync(auxFilePath, new PdfOptions {
                 Format = PaperFormat.A4,
-                PrintBackground = true
+                PrintBackground = true,
+                MarginOptions = new MarginOptions() { Left = "30px", Right = "30px", Top = "40px", Bottom = "40px" }
             });
 
+            // Adiciona Números na Página (utilizando itextSharp)
+            string returnPath = AddPageNumber(outputDirectoryPath, auxFilePath, name);
+        
             // Retorna o caminho do PDF
             return returnPath;
         }
@@ -119,7 +158,9 @@ namespace PDFGenerator
         {
             // Gera o arquivo .json com os dados do template
             string outputFilePath = Path.Combine(outputDirectoryPath, _jsonName);
-            File.WriteAllText(outputFilePath, data);
+
+            // ALTERAR AQUI
+            //File.WriteAllText(outputFilePath, data);
             return true;
         }
 
